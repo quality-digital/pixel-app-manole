@@ -1,9 +1,8 @@
 {
-  "name": "YOURAPPNAME",
-  "vendor": "vtex",
+  "name": "pixel-app-insider",
+  "vendor": "manole",
   "version": "0.0.1",
-  "title": "CHANGEME",
-  "description": "CHANGEME",
+  "title": "Pixel APP Insider",
   "billingOptions": {
     "termsURL": "https://compliance.vtex.com/gdpr/policies/vtex-privacy-policy",
     "support": {
@@ -23,17 +22,6 @@
   },
   "dependencies": {
     "vtex.pixel-interfaces": "1.x"
-  },
-  "settingsSchema": {
-    "title": "YOUR APP NAME",
-    "type": "object",
-    "properties": {
-      "gtmId": {
-        "title": "SAMPLE FIELD",
-        "description": "Enter the ID (GTM-XXXX) from your Google Tag Manager",
-        "type": "string"
-      }
-    }
   },
   "$schema": "https://raw.githubusercontent.com/vtex/node-vtex-api/master/gen/manifest.schema"
 }
