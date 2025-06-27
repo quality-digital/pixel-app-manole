@@ -131,6 +131,20 @@ function getImageProductCart(imageProduct: any) {
 }
 /*---------------------*/
 
+function shipping(orderForm: any) {
+  var shipping = null;
+  var totalizers = orderForm.totalizers
+  for (var i = 0; i < totalizers.length; i++) {
+    if (totalizers[i].id === "Shipping") {
+      return shipping = totalizers[i].value;
+    }
+    if (shipping !== null) {
+      return shipping;
+    } else {
+      return 0
+    }
+  }
+}
 function sendEventInside(eventName: string, data: any) {
   switch (eventName) {
     case 'home': {
@@ -147,22 +161,26 @@ function sendEventInside(eventName: string, data: any) {
 
       console.log('product', data)
 
+
+      let objectUser = {
+        "id": data?.product?.productReference,
+        "name": data?.product?.productName,
+        "taxonomy": extractCategoryNames(data.product?.categoryTree),
+        "unit_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.Price || 0,
+        "unit_sale_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.PriceWithoutDiscount || 0,
+        "url": data?.product?.detailUrl,
+        "product_image_url": getImageProduct(data?.product?.selectedSku?.imageUrl),
+        "custom": {
+          "isbn": data?.product?.selectedSku?.ean,
+          "ean": data?.product?.selectedSku?.ean,
+          "modalidade": data?.product?.selectedSku.name
+        }
+      }
+
+      localStorage.setItem('insiderQueue', JSON.stringify(objectUser));
       window.InsiderQueue.push({
         type: 'product',
-        value: {
-          "id": data?.product?.productReference,
-          "name": data?.product?.productName,
-          "taxonomy": extractCategoryNames(data.product?.categoryTree),
-          "unit_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.Price || 0,
-          "unit_sale_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.PriceWithoutDiscount || 0,
-          "url": data?.product?.detailUrl,
-          "product_image_url": getImageProduct(data?.product?.selectedSku?.imageUrl),
-          "custom": {
-            "isbn": data?.product?.selectedSku?.ean,
-            "ean": data?.product?.selectedSku?.ean,
-            "modalidade": data?.product?.selectedSku.name
-          }
-        }
+        value: objectUser
       });
       window.InsiderQueue.push({
         type: "currency",
@@ -336,25 +354,32 @@ function sendEventInside(eventName: string, data: any) {
 
     case 'viewCart': {
       let newItems: any = [];
-      for (var i = 0; i < data.length; i++) {
-        var item = data[i];
-        const taxonomy = item.category.split('/').map((i: any) => i.trim());
+      let dataOrderForm: any = localStorage.getItem('orderform');
+      let orderForm = JSON.parse(dataOrderForm) || [];
 
-        newItems.push({
-          id: item.skuId,
-          name: item.name,
-          taxonomy: taxonomy,
-          unit_price: '',
-          unit_sale_price: '',
-          url: window.location.hostname + item.detailUrl,
-          product_image_url: item.imageUrl,
-          quantity: item.quantity
-        });
-      }
+
+      data.forEach((item: any) => {
+        const taxonomy = item.category.split('/').map((i: any) => i.trim());
+        const orderItem = orderForm.items.find((d: any) => d.id === item.skuId);
+
+        if (orderItem) {
+          newItems.push({
+            id: item.skuId,
+            name: item.name,
+            taxonomy: taxonomy,
+            unit_price: parseFloat(tratarNumero(orderItem.price)),
+            unit_sale_price: parseFloat(tratarNumero(orderItem.sellingPrice)),
+            url: window.location.hostname + item.detailUrl,
+            product_image_url: item.imageUrl,
+            quantity: item.quantity
+          });
+        }
+      });
+
       window.InsiderQueue.push({
         type: 'cart', value: {
-          "total": '',
-          "shipping_cost": '',
+          "total": parseFloat(tratarNumero(orderForm.value)),
+          "shipping_cost": shipping(orderForm),
           "items": newItems
         }
       });
@@ -365,6 +390,8 @@ function sendEventInside(eventName: string, data: any) {
       window.InsiderQueue.push({
         type: 'init'
       });
+
+      break
     }
 
     case 'user': {
@@ -388,6 +415,8 @@ function sendEventInside(eventName: string, data: any) {
     }
   }
 }
+
+
 export function handleEvents(e: PixelMessage) {
   switch (e.data.eventName) {
 
