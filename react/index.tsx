@@ -8,7 +8,6 @@ declare global {
   }
 }
 
-//let page_type: any = ''
 function injectInsiderScript() {
   if (window.InsiderQueue) {
     const script = document.createElement('script')
@@ -22,7 +21,6 @@ function injectInsiderScript() {
 function getPageName(input: string) {
   const parts = input.split(/[.#]/)
 
-  // Se houver um #, retorna o elemento na posição 1, se houver ., retorna o segundo elemento
   if (input.includes('#')) {
     return parts[2] || null
   }
@@ -49,23 +47,18 @@ function extractCategoryNames(categories: any) {
 }
 
 function formatPathSegments(url: any) {
-  // Extrai o caminho da URL (parte entre o domínio e a query string)
+
   const path = new URL(url).pathname;
 
-  // Divide o caminho em segmentos e filtra valores vazios
   const segments = path.split('/').filter(segment => segment && segment !== '__bindingAddress');
 
-  // Formata cada segmento conforme as regras
   const formatted = segments.map(segment => {
-    // Substitui hífens por espaços
     let formattedSegment = segment.replace(/-/g, ' ');
 
-    // Capitaliza cada palavra
     formattedSegment = formattedSegment.split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
 
-    // Trata a exceção específica
     if (formattedSegment === 'Cursos Na Area Da Saude') {
       return 'Curso na área da saúde';
     }
@@ -79,7 +72,6 @@ function formatPathSegments(url: any) {
 
 /*Add to CART*/
 
-// Busca o evento de add_to_cart no dataLayer
 function getViewItemEvent(eventDataLayer: any, dataLayer: any) {
   for (let i = dataLayer.length - 1; i >= 0; i--) {
     if (dataLayer[i].event === eventDataLayer) {
@@ -89,7 +81,6 @@ function getViewItemEvent(eventDataLayer: any, dataLayer: any) {
   return null;
 }
 
-// Função para formatar valores monetários
 function tratarNumero(valor: any) {
   let str = valor.toString();
 
@@ -102,13 +93,11 @@ function tratarNumero(valor: any) {
     }
   }
 
-  // Regra: Se há dois ou mais zeros à direita, removemos APENAS 2
   if (zerosFinais >= 2) {
     str = str.substring(0, str.length - 2);
-    return str; // Inteiro formatado
+    return str;
   }
 
-  // Se tem 1 zero final, mantemos o zero e colocamos ponto antes do último dígito significativo
   if (zerosFinais === 1) {
     let base = str.substring(0, str.length - 1);
     if (base.length === 1) {
@@ -117,7 +106,6 @@ function tratarNumero(valor: any) {
     return base.substring(0, base.length - 1) + '.' + base.substring(base.length - 1);
   }
 
-  // Se não há zeros finais, inserimos ponto antes dos dois últimos dígitos
   if (str.length <= 2) {
     return '0.' + (str.length === 1 ? '0' + str : str);
   }
@@ -125,11 +113,9 @@ function tratarNumero(valor: any) {
   return str.substring(0, str.length - 2) + '.' + str.substring(str.length - 2);
 }
 
-// Formata a URL da imagem do produto
 function getImageProductCart(imageProduct: any) {
   return imageProduct ? imageProduct.split('-')[0] : null;
 }
-/*---------------------*/
 
 function shipping(orderForm: any) {
   var shipping = null;
@@ -159,9 +145,6 @@ function sendEventInside(eventName: string, data: any) {
 
     case 'product': {
 
-      console.log('product', data)
-
-
       let objectUser = {
         "id": data?.product?.productReference,
         "name": data?.product?.productName,
@@ -177,7 +160,7 @@ function sendEventInside(eventName: string, data: any) {
         }
       }
 
-      localStorage.setItem('insiderQueue', JSON.stringify(objectUser));
+
       window.InsiderQueue.push({
         type: 'product',
         value: objectUser
@@ -195,7 +178,6 @@ function sendEventInside(eventName: string, data: any) {
     }
 
     case 'subcategory': {
-      console.log('subcategory', data)
       let formattedPaths: any = formatPathSegments(data.pageUrl);
       if (!formattedPaths || formattedPaths.length === 0) {
         return
@@ -213,8 +195,6 @@ function sendEventInside(eventName: string, data: any) {
     }
 
     case 'department': {
-
-      console.log('department', data)
       let formattedPaths: any = formatPathSegments(data.pageUrl);
 
       if (!formattedPaths || formattedPaths.length === 0) {
@@ -233,10 +213,9 @@ function sendEventInside(eventName: string, data: any) {
     }
     case 'addToCart': {
 
-      // Inicialização principal
       let viewItemEvent = getViewItemEvent('add_to_cart', window.dataLayer);
       if (!viewItemEvent || !viewItemEvent.ecommerce || !viewItemEvent.ecommerce.items || !viewItemEvent.ecommerce.items.length) {
-        console.log('Dados do produto não encontrados no dataLayer');
+        console.warn('Product data not found in dataLayer');
       }
 
       let product = viewItemEvent.ecommerce.items[0];
@@ -267,7 +246,6 @@ function sendEventInside(eventName: string, data: any) {
         type: 'currency',
         value: 'BRL'
       });
-      //"https://manole.vtexassets.com/arquivos/ids/266973/9788520467961--Medicina-de-Emergencia---19ª-Edicao-Abordagem-pratica.jpg.jpg?v=638799769120100000"
       window.InsiderQueue.push({
         type: 'add_to_cart',
         value: {
@@ -296,7 +274,7 @@ function sendEventInside(eventName: string, data: any) {
       let viewItemEvent = getViewItemEvent("remove_from_cart", window.dataLayer);
 
       if (!viewItemEvent || !viewItemEvent.ecommerce || !viewItemEvent.ecommerce.items || !viewItemEvent.ecommerce.items.length) {
-        console.log('Dados do produto não encontrados no dataLayer');
+        console.warn('Product data not found in dataLayer');
       }
 
       let product = viewItemEvent.ecommerce.items[0];
@@ -321,14 +299,12 @@ function sendEventInside(eventName: string, data: any) {
         }
       }
 
-      // Filtra o array para remover o item com o ID especificado
       let newStorage = [];
       for (var j = 0; j < lStorage.length; j++) {
         if (lStorage[j].id !== itemId) {
           newStorage.push(lStorage[j]);
         }
       }
-      // Atualiza o localStorage
       localStorage.setItem('imgAddToCart', JSON.stringify(newStorage));
 
       window.InsiderQueue.push({
@@ -360,21 +336,21 @@ function sendEventInside(eventName: string, data: any) {
 
       data.forEach((item: any) => {
         const taxonomy = item.category.split('/').map((i: any) => i.trim());
-        const orderItem = orderForm.items.find((d: any) => d.id === item.skuId);
+        const orderItem = orderForm.items.find((debugger: any) => d.id === item.skuId);
 
-        if (orderItem) {
-          newItems.push({
-            id: item.skuId,
-            name: item.name,
-            taxonomy: taxonomy,
-            unit_price: parseFloat(tratarNumero(orderItem.price)),
-            unit_sale_price: parseFloat(tratarNumero(orderItem.sellingPrice)),
-            url: window.location.hostname + item.detailUrl,
-            product_image_url: item.imageUrl,
-            quantity: item.quantity
-          });
-        }
-      });
+      if (orderItem) {
+        newItems.push({
+          id: item.skuId,
+          name: item.name,
+          taxonomy: taxonomy,
+          unit_price: parseFloat(tratarNumero(orderItem.price)),
+          unit_sale_price: parseFloat(tratarNumero(orderItem.sellingPrice)),
+          url: window.location.hostname + item.detailUrl,
+          product_image_url: item.imageUrl,
+          quantity: item.quantity
+        });
+      }
+    });
 
       window.InsiderQueue.push({
         type: 'cart', value: {
@@ -392,28 +368,28 @@ function sendEventInside(eventName: string, data: any) {
       });
 
       break
-    }
+  }
 
     case 'user': {
 
-      let getInsiderQueueUse = localStorage.getItem('insiderQueue');
+    let getInsiderQueueUse = localStorage.getItem('insiderQueue');
 
-      if (!getInsiderQueueUse) return
-      /*
-      window.InsiderQueue.push({
-        type: page_type === 'department' ? 'category' : page_type
-      });*/
-      window.InsiderQueue.push(JSON.parse(getInsiderQueueUse));
-      /*
-      window.InsiderQueue.push({
-        type: 'init'
-      });
-      */
-      injectInsiderScript()
+    if (!getInsiderQueueUse) return
+    /*
+    window.InsiderQueue.push({
+      type: page_type === 'department' ? 'category' : page_type
+    });*/
+    window.InsiderQueue.push(JSON.parse(getInsiderQueueUse));
+    /*
+    window.InsiderQueue.push({
+      type: 'init'
+    });
+    */
+    injectInsiderScript()
 
-      break
-    }
+    break
   }
+}
 }
 
 
@@ -422,11 +398,9 @@ export function handleEvents(e: PixelMessage) {
 
     case 'vtex:pageView': {
       const pageType = getPageName((e.data as any).routeId)
-      //page_type = pageType
 
       switch (pageType) {
         case 'home': {
-          //injectInsiderScript()
           window.InsiderQueue = window.InsiderQueue || []
           sendEventInside('home', e.data)
           break
@@ -444,7 +418,6 @@ export function handleEvents(e: PixelMessage) {
       break
     }
     case 'vtex:productView': {
-      //injectInsiderScript()
       window.InsiderQueue = window.InsiderQueue || []
       sendEventInside('product', e.data)
       break
@@ -471,8 +444,6 @@ export function handleEvents(e: PixelMessage) {
       const { items } = e.data
 
       window.InsiderQueue = window.InsiderQueue || []
-      console.log('cartChanged ee', e)
-      console.log('cartChanged', items)
       sendEventInside('viewCart', items)
       return
 
@@ -484,12 +455,31 @@ export function handleEvents(e: PixelMessage) {
       if (!data.isAuthenticated) {
         return
       }
-
-      console.log('userData', e)
       window.InsiderQueue = window.InsiderQueue || []
 
       sendEventInside('user', data)
       return
+    }
+
+    case 'vtex:orderPlaced': {
+      window.InsiderQueue = window.InsiderQueue || []
+      const order: any = e.data
+      var localStorageData = localStorage.getItem('ObjectInsiderPurchase')
+      var objectInsider = localStorageData ? JSON.parse(localStorageData) : false
+
+      debugger
+      if (objectInsider || order) {
+        objectInsider.order_id = order?.ordersInOrderGroup[0];
+        window.InsiderQueue.push({
+          type: 'purchase', value: objectInsider
+        });
+        window.InsiderQueue.push({
+          type: 'currency',
+          value: 'BRL'
+        });
+      }
+
+      break
     }
     default: {
       break
