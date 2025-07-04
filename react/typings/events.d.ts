@@ -1,22 +1,23 @@
 export interface PixelMessage extends MessageEvent {
   data:
-    | ProductViewData
-    | ProductClickData
-    | OrderPlacedData
-    | OrderPlacedTrackedData
-    | PageViewData
-    | ProductImpressionData
-    | AddToCartData
-    | RemoveToCartData
-    | CartChangedData
-    | HomePageInfo
-    | ProductPageInfoData
-    | SearchPageInfoData
-    | UserData
-    | CartIdData
-    | PromoViewData
-    | PromotionClickData
-    | NewsletterSubscriptionData
+  | ProductViewData
+  | ProductClickData
+  | OrderPlacedData
+  | OrderPlacedTrackedData
+  | PageViewData
+  | ProductImpressionData
+  | AddToCartData
+  | RemoveToCartData
+  | CartChangedData
+  | HomePageInfo
+  | ProductPageInfoData
+  | SearchPageInfoData
+  | UserData
+  | CartIdData
+  | PromoViewData
+  | PromotionClickData
+  | NewsletterSubscriptionData
+  | ViewCartData
 }
 
 export interface EventData {
@@ -45,6 +46,13 @@ export interface UserData extends PageInfoData {
   isAuthenticated: boolean
 }
 
+export interface ViewCartData extends EventData {
+  event: 'viewCart'
+  eventType: 'viewCart'
+  eventName: 'vtex:viewCart'
+  items: CartItem[]
+}
+
 export interface CartIdData extends PageInfoData {
   eventType: 'cartId'
   eventName: 'vtex:cartId'
@@ -61,10 +69,10 @@ export interface ProductPageInfoData extends PageInfoData {
 
 export interface SearchPageInfoData extends PageInfoData {
   eventType:
-    | 'internalSiteSearchView'
-    | 'categoryView'
-    | 'departmentView'
-    | 'emptySearchView'
+  | 'internalSiteSearchView'
+  | 'categoryView'
+  | 'departmentView'
+  | 'emptySearchView'
   category?: CategoryMetaData
   department?: DepartmentMetaData
   search?: SearchMetaData

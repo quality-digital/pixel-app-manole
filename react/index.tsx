@@ -1,5 +1,4 @@
 import { canUseDOM } from 'vtex.render-runtime'
-
 import type { PixelMessage } from './typings/events'
 
 declare global {
@@ -8,18 +7,25 @@ declare global {
   }
 }
 
+
+let page_type: string | null = null
+
+
 function injectInsiderScript() {
   if (window.InsiderQueue) {
     const script = document.createElement('script')
-
     script.async = true
     script.src = 'https://manole.api.useinsider.com/ins.js?id=10012431'
     document.head.appendChild(script)
   }
 }
-
 function getPageName(input: string) {
+
+  if (!input) return null
   const parts = input.split(/[.#]/)
+  if (parts.length === 1) {
+    return parts[0] || null
+  }
 
   if (input.includes('#')) {
     return parts[2] || null
@@ -68,10 +74,7 @@ function formatPathSegments(url: any) {
 
   return formatted;
 }
-
-
 /*Add to CART*/
-
 function getViewItemEvent(eventDataLayer: any, dataLayer: any) {
   for (let i = dataLayer.length - 1; i >= 0; i--) {
     if (dataLayer[i].event === eventDataLayer) {
@@ -82,7 +85,10 @@ function getViewItemEvent(eventDataLayer: any, dataLayer: any) {
 }
 
 function tratarNumero(valor: any) {
-  let str = valor.toString();
+  if (valor === undefined || valor === null) {
+    return '';
+  }
+  let str = valor.toString() ? valor.toString() : valor;
 
   let zerosFinais = 0;
   for (let i = str.length - 1; i >= 0; i--) {
@@ -151,7 +157,7 @@ function sendEventInside(eventName: string, data: any) {
         "taxonomy": extractCategoryNames(data.product?.categoryTree),
         "unit_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.Price || 0,
         "unit_sale_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.PriceWithoutDiscount || 0,
-        "url": data?.product?.detailUrl,
+        "url": window.location.origin + data?.product?.detailUrl,
         "product_image_url": getImageProduct(data?.product?.selectedSku?.imageUrl),
         "custom": {
           "isbn": data?.product?.selectedSku?.ean,
@@ -212,35 +218,76 @@ function sendEventInside(eventName: string, data: any) {
       break
     }
     case 'addToCart': {
-
       let viewItemEvent = getViewItemEvent('add_to_cart', window.dataLayer);
-      if (!viewItemEvent || !viewItemEvent.ecommerce || !viewItemEvent.ecommerce.items || !viewItemEvent.ecommerce.items.length) {
-        console.warn('Product data not found in dataLayer');
-      }
 
+      if (viewItemEvent.ecommerce === null || viewItemEvent.ecommerce.items === undefined || viewItemEvent.ecommerce.items.length === 0) {
+        break
+      }
       let product = viewItemEvent.ecommerce.items[0];
+
       let arrayTaxonomy = [];
 
       if (product.item_category) arrayTaxonomy.push(product.item_category);
       if (product.item_category2) arrayTaxonomy.push(product.item_category2);
       if (product.item_category3) arrayTaxonomy.push(product.item_category3);
 
-      let dataStorage: any = localStorage.getItem('imgAddToCart')
-      let lStorage = JSON.parse(dataStorage) || [];
-      let objectNew = {
+      let objectNew: any;
+
+      objectNew = {
         id: product.item_id,
         img: getImageProductCart(data.imageUrl),
-        unit_sale_price: parseFloat(tratarNumero(data.sellingPrice)),
+        unit_sale_price: data.sellingPrice ? parseFloat(tratarNumero(data.sellingPrice)) : null,
         unit_price: parseFloat(tratarNumero(data.price)),
+        quantity: data.quantity,
         custom: {
           isbn: data.ean,
           ean: data.ean,
           modalidade: data.variant
         }
       };
+      let storageData: any = localStorage.getItem('imgAddToCart')
+      let imgAddToCart = JSON.parse(storageData);
+      let imgAddToCartNew: any;
+      let imgAddToCartNewEquals: any;
+      let existingItem: any;
+      let unitePrice: any = 0;
+      if (storageData) {
+        imgAddToCartNew = imgAddToCart.filter((item: any) => item.id !== objectNew.id && item.unit_sale_price);
 
-      lStorage.push(objectNew);
-      localStorage.setItem('imgAddToCart', JSON.stringify(lStorage));
+        if (imgAddToCartNew.id !== objectNew.id && imgAddToCartNew.unit_sale_price) {
+          return
+        }
+        if (imgAddToCartNew.id !== objectNew.id && objectNew.unit_sale_price) {
+          localStorage.setItem('imgAddToCart', JSON.stringify([...imgAddToCart, objectNew]));
+        }
+        imgAddToCartNewEquals = imgAddToCart.filter((item: any) => item.id === objectNew.id && item.unit_sale_price);
+        if (imgAddToCartNewEquals.length > 0 && imgAddToCartNewEquals[0].id === objectNew.id && imgAddToCartNewEquals[0].unit_sale_price) {
+          imgAddToCartNew = [objectNew];
+        }
+      }
+
+      if (storageData) {
+        // Verifica se o item já existe no carrinho
+        existingItem = imgAddToCart.find((item: any) =>
+          item.id === objectNew.id && item.unit_sale_price
+        );
+
+        if (existingItem) {
+          // Se o item existe, incrementa a quantity
+          existingItem.quantity = (existingItem.quantity || 1) + 1;
+          localStorage.setItem('imgAddToCart', JSON.stringify(imgAddToCart));
+          imgAddToCartNew = [existingItem]
+          unitePrice = existingItem.unit_price;
+        }
+      }
+
+
+      if (!storageData) {
+        let newArray = [objectNew];
+        localStorage.setItem('imgAddToCart', JSON.stringify(newArray));
+      }
+
+      let unitSale = objectNew.unit_sale_price === null ? imgAddToCartNew[0].unit_sale_price : parseFloat(tratarNumero(objectNew.unit_sale_price));
 
       window.InsiderQueue.push({
         type: 'currency',
@@ -253,18 +300,17 @@ function sendEventInside(eventName: string, data: any) {
           name: data.name,
           taxonomy: arrayTaxonomy,
           unit_price: parseFloat(tratarNumero(data.price)),
-          unit_sale_price: parseFloat(tratarNumero(data.sellingPrice)),
           url: window.location.href + data.detailUrl,
+          unit_sale_price: unitePrice === 0 ? unitSale : unitePrice,
           quantity: data.quantity,
           product_image_url: getImageProductCart(data.imageUrl),
           custom: {
-            isbn: data.ean,
-            ean: data.ean,
+            isbn: data.ean ? data.ean : imgAddToCartNew[0].custom.isbn,
+            ean: data.ean ? data.ean : imgAddToCartNew[0].custom.ean,
             modalidade: data.variant
           }
         }
       });
-
       injectInsiderScript()
       break
     }
@@ -275,6 +321,7 @@ function sendEventInside(eventName: string, data: any) {
 
       if (!viewItemEvent || !viewItemEvent.ecommerce || !viewItemEvent.ecommerce.items || !viewItemEvent.ecommerce.items.length) {
         console.warn('Product data not found in dataLayer');
+        break
       }
 
       let product = viewItemEvent.ecommerce.items[0];
@@ -285,33 +332,64 @@ function sendEventInside(eventName: string, data: any) {
       if (product.item_category3) arrayTaxonomy.push(product.item_category3);
 
       let storageData: any = localStorage.getItem('imgAddToCart')
-      let lStorage = JSON.parse(storageData)
+      let imgAddToCart = JSON.parse(storageData)
+
+
       let itemId = product.item_id;
       let unit_price: any = ''
       let unit_sale_price: any = ''
       let custom: any = {};
-      for (var i = 0; i < lStorage.length; i++) {
-        if (lStorage[i].id === itemId) {
-          unit_price = lStorage[i].unit_price
-          unit_sale_price = lStorage[i].unit_sale_price
-          custom = lStorage[i].custom;
+
+      for (var i = 0; i < imgAddToCart.length; i++) {
+        if (imgAddToCart[i].id === itemId) {
+          unit_price = imgAddToCart[i].unit_price
+          unit_sale_price = imgAddToCart[i].unit_sale_price
+          custom = imgAddToCart[i].custom;
           break;
         }
       }
 
       let newStorage = [];
-      for (var j = 0; j < lStorage.length; j++) {
-        if (lStorage[j].id !== itemId) {
-          newStorage.push(lStorage[j]);
+      for (var j = 0; j < imgAddToCart.length; j++) {
+        if (imgAddToCart[j].id !== itemId) {
+          newStorage.push(imgAddToCart[j]);
+        }
+        if (imgAddToCart[j].id === itemId) {
+          if (imgAddToCart[j].quantity === 0) {
+            return
+          } else {
+            imgAddToCart[j].quantity - 1;
+            newStorage.push(imgAddToCart[j]);
+          }
+        }
+      }
+      let existingItem: any;
+
+      if (storageData) {
+        existingItem = newStorage.find((item: any) =>
+          item.id === itemId && item.quantity > 0
+        );
+
+      }
+      // new code
+      if (existingItem) {
+        if (existingItem.quantity === 0) {
+          // Remove o item completamente se a quantidade for 0
+          newStorage = newStorage.filter((item: any) => item.id !== itemId);
+        } else {
+          // Reduz 1 da quantidade do item correspondente
+          newStorage = newStorage.map((item: any) =>
+            item.id === itemId
+              ? { ...item, quantity: item.quantity > 1 ? item.quantity - 1 : 1 } // Garante que não vai abaixo de 1
+              : item
+          );
         }
       }
       localStorage.setItem('imgAddToCart', JSON.stringify(newStorage));
-
       window.InsiderQueue.push({
         type: 'currency',
         value: 'BRL'
       });
-
       window.InsiderQueue.push({
         type: 'remove_from_cart',
         value: {
@@ -319,13 +397,14 @@ function sendEventInside(eventName: string, data: any) {
           name: data.name,
           taxonomy: arrayTaxonomy,
           unit_price: unit_price,
-          unit_sale_price: unit_sale_price,
-          url: window.location.href + data.detailUrl,
+          quantity: data.quantity,
+          unit_sale_price: unit_sale_price ? unit_sale_price : 0,
+          url: window.location.origin + data.detailUrl,
           product_image_url: getImageProductCart(data.imageUrl),
           custom: custom
         }
       });
-
+      break
     }
 
     case 'viewCart': {
@@ -333,24 +412,26 @@ function sendEventInside(eventName: string, data: any) {
       let dataOrderForm: any = localStorage.getItem('orderform');
       let orderForm = JSON.parse(dataOrderForm) || [];
 
-
+      if (!data) {
+        break
+      }
       data.forEach((item: any) => {
         const taxonomy = item.category.split('/').map((i: any) => i.trim());
-        const orderItem = orderForm.items.find((debugger: any) => d.id === item.skuId);
+        const orderItem = orderForm.items.find((d: any) => d.id === item.skuId);
 
-      if (orderItem) {
-        newItems.push({
-          id: item.skuId,
-          name: item.name,
-          taxonomy: taxonomy,
-          unit_price: parseFloat(tratarNumero(orderItem.price)),
-          unit_sale_price: parseFloat(tratarNumero(orderItem.sellingPrice)),
-          url: window.location.hostname + item.detailUrl,
-          product_image_url: item.imageUrl,
-          quantity: item.quantity
-        });
-      }
-    });
+        if (orderItem) {
+          newItems.push({
+            id: item.skuId,
+            name: item.name,
+            taxonomy: taxonomy,
+            unit_price: parseFloat(tratarNumero(orderItem.price)),
+            unit_sale_price: parseFloat(tratarNumero(orderItem.sellingPrice)),
+            url: window.location.hostname + item.detailUrl,
+            product_image_url: item.imageUrl,
+            quantity: item.quantity
+          });
+        }
+      });
 
       window.InsiderQueue.push({
         type: 'cart', value: {
@@ -368,32 +449,45 @@ function sendEventInside(eventName: string, data: any) {
       });
 
       break
-  }
+    }
 
     case 'user': {
+      let getInsiderQueueUse = localStorage.getItem('insiderQueue');
 
-    let getInsiderQueueUse = localStorage.getItem('insiderQueue');
+      if (!getInsiderQueueUse) return
+      let InsiderUserObj = JSON.parse(getInsiderQueueUse)
+      InsiderUserObj.value.custom = {
+        cpf: InsiderUserObj.value.document,
+      }
+      window.InsiderQueue.push(InsiderUserObj);
 
-    if (!getInsiderQueueUse) return
-    /*
-    window.InsiderQueue.push({
-      type: page_type === 'department' ? 'category' : page_type
-    });*/
-    window.InsiderQueue.push(JSON.parse(getInsiderQueueUse));
-    /*
-    window.InsiderQueue.push({
-      type: 'init'
-    });
-    */
-    injectInsiderScript()
+      window.InsiderQueue.push({
 
-    break
+        type: 'set_custom_identifier',
+
+        value: {
+
+          "cpf": InsiderUserObj.value.document
+
+        }
+
+      });
+
+      window.InsiderQueue.push({
+        type: 'init'
+      });
+
+      injectInsiderScript()
+
+      break
+    }
   }
-}
 }
 
 
 export function handleEvents(e: PixelMessage) {
+
+  if (e.data.eventName === undefined || e.data.eventName === null) return
   switch (e.data.eventName) {
 
     case 'vtex:pageView': {
@@ -403,16 +497,21 @@ export function handleEvents(e: PixelMessage) {
         case 'home': {
           window.InsiderQueue = window.InsiderQueue || []
           sendEventInside('home', e.data)
+          page_type = 'home'
           break
         }
         case 'subcategory': {
           window.InsiderQueue = window.InsiderQueue || []
           sendEventInside('subcategory', e.data)
+          page_type = 'category'
+          break
         }
 
         case 'department': {
           window.InsiderQueue = window.InsiderQueue || []
           sendEventInside('department', e.data)
+          page_type = 'category'
+          break
         }
       }
       break
@@ -420,47 +519,52 @@ export function handleEvents(e: PixelMessage) {
     case 'vtex:productView': {
       window.InsiderQueue = window.InsiderQueue || []
       sendEventInside('product', e.data)
+      page_type = 'product'
       break
     }
 
     case 'vtex:addToCart': {
       const { items } = e.data
-
       window.InsiderQueue = window.InsiderQueue || []
       sendEventInside('addToCart', items[0])
-
-      return
+      break
     }
     case 'vtex:removeFromCart': {
       const { items } = e.data
 
       window.InsiderQueue = window.InsiderQueue || []
       sendEventInside('remove_from_cart', items[0])
-
-      return
+      break
     }
 
-    case 'vtex:cartChanged': {
+    case 'vtex:viewCart': {
       const { items } = e.data
-
       window.InsiderQueue = window.InsiderQueue || []
       sendEventInside('viewCart', items)
-      return
-
+      break
     }
-
     case 'vtex:userData': {
       const { data } = e
 
       if (!data.isAuthenticated) {
         return
       }
-      window.InsiderQueue = window.InsiderQueue || []
 
-      sendEventInside('user', data)
-      return
+      // Aguarda até que page_type tenha algum valor antes de continuar
+      const waitForPageType = (callback: () => void) => {
+        if (page_type) {
+          callback()
+        } else {
+          setTimeout(() => waitForPageType(callback), 100)
+        }
+      }
+
+      waitForPageType(() => {
+        window.InsiderQueue = window.InsiderQueue || []
+        sendEventInside('user', data)
+      })
+      break
     }
-
     case 'vtex:orderPlaced': {
       window.InsiderQueue = window.InsiderQueue || []
       const order: any = e.data
@@ -478,7 +582,7 @@ export function handleEvents(e: PixelMessage) {
           value: 'BRL'
         });
       }
-
+      page_type = 'purchase'
       break
     }
     default: {
