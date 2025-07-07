@@ -150,7 +150,6 @@ function sendEventInside(eventName: string, data: any) {
     }
 
     case 'product': {
-      console.log('data?.product', data?.product)
       let objectUser = {
         "id": data?.product?.selectedSku?.itemId,
         "name": data?.product?.productName,
