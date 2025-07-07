@@ -150,13 +150,13 @@ function sendEventInside(eventName: string, data: any) {
     }
 
     case 'product': {
-
+      console.log('data?.product', data?.product)
       let objectUser = {
-        "id": data?.product?.productReference,
+        "id": data?.product?.selectedSku?.itemId,
         "name": data?.product?.productName,
         "taxonomy": extractCategoryNames(data.product?.categoryTree),
-        "unit_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.Price || 0,
-        "unit_sale_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.PriceWithoutDiscount || 0,
+        "unit_sale_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.Price || 0,
+        "unit_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.PriceWithoutDiscount || 0,
         "url": window.location.origin + data?.product?.detailUrl,
         "product_image_url": getImageProduct(data?.product?.selectedSku?.imageUrl),
         "custom": {
@@ -232,9 +232,8 @@ function sendEventInside(eventName: string, data: any) {
       if (product.item_category3) arrayTaxonomy.push(product.item_category3);
 
       let objectNew: any;
-
       objectNew = {
-        id: product.item_id,
+        id: product.item_variant,
         img: getImageProductCart(data.imageUrl),
         unit_sale_price: data.sellingPrice ? parseFloat(tratarNumero(data.sellingPrice)) : null,
         unit_price: parseFloat(tratarNumero(data.price)),
@@ -287,7 +286,9 @@ function sendEventInside(eventName: string, data: any) {
         localStorage.setItem('imgAddToCart', JSON.stringify(newArray));
       }
 
-      let unitSale = objectNew.unit_sale_price === null ? imgAddToCartNew[0].unit_sale_price : parseFloat(tratarNumero(objectNew.unit_sale_price));
+      let unitSale = imgAddToCartNew && imgAddToCartNew.find((item: any) => item.id === data.skuId)
+        ? imgAddToCartNew.find((item: any) => item.id === data.skuId).unit_sale_price
+        : objectNew.unit_sale_price;
 
       window.InsiderQueue.push({
         type: 'currency',
@@ -296,12 +297,12 @@ function sendEventInside(eventName: string, data: any) {
       window.InsiderQueue.push({
         type: 'add_to_cart',
         value: {
-          id: data.productId,
+          id: data.skuId,
           name: data.name,
           taxonomy: arrayTaxonomy,
-          unit_price: parseFloat(tratarNumero(data.price)),
-          url: window.location.href + data.detailUrl,
-          unit_sale_price: unitePrice === 0 ? unitSale : unitePrice,
+          unit_price: parseFloat(existingItem ? existingItem.unit_price : tratarNumero(data.price)),
+          url: 'https://' + window.location.hostname + data.detailUrl,
+          unit_sale_price: unitSale ? unitSale : unitePrice,
           quantity: data.quantity,
           product_image_url: getImageProductCart(data.imageUrl),
           custom: {
@@ -335,7 +336,7 @@ function sendEventInside(eventName: string, data: any) {
       let imgAddToCart = JSON.parse(storageData)
 
 
-      let itemId = product.item_id;
+      let itemId = product.item_variant;
       let unit_price: any = ''
       let unit_sale_price: any = ''
       let custom: any = {};
@@ -399,7 +400,7 @@ function sendEventInside(eventName: string, data: any) {
           unit_price: unit_price,
           quantity: data.quantity,
           unit_sale_price: unit_sale_price ? unit_sale_price : 0,
-          url: window.location.origin + data.detailUrl,
+          url: 'https://' + window.location.hostname + data.detailUrl,
           product_image_url: getImageProductCart(data.imageUrl),
           custom: custom
         }
@@ -426,7 +427,7 @@ function sendEventInside(eventName: string, data: any) {
             taxonomy: taxonomy,
             unit_price: parseFloat(tratarNumero(orderItem.price)),
             unit_sale_price: parseFloat(tratarNumero(orderItem.sellingPrice)),
-            url: window.location.hostname + item.detailUrl,
+            url: 'https://' + window.location.hostname + item.detailUrl,
             product_image_url: item.imageUrl,
             quantity: item.quantity
           });
@@ -581,6 +582,10 @@ export function handleEvents(e: PixelMessage) {
           type: 'currency',
           value: 'BRL'
         });
+        window.InsiderQueue.push({
+          type: 'init'
+        });
+
       }
       page_type = 'purchase'
       break
