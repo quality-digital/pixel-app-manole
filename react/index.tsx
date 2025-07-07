@@ -38,7 +38,7 @@ function getPageName(input: string) {
   return null
 }
 
-function getImageProduct(imagens: string | undefined) {
+function getProductImageUrl(imagens: string | undefined) {
   if (!imagens) {
     return
   }
@@ -54,7 +54,13 @@ function extractCategoryNames(categories: any) {
 
 function formatPathSegments(url: any) {
 
-  const path = new URL(url).pathname;
+  let path = '';
+  try {
+    path = new URL(url).pathname;
+  } catch (e) {
+    console.warn('Invalid URL:', url);
+    return [];
+  }
 
   const segments = path.split('/').filter(segment => segment && segment !== '__bindingAddress');
 
@@ -84,7 +90,7 @@ function getViewItemEvent(eventDataLayer: any, dataLayer: any) {
   return null;
 }
 
-function tratarNumero(valor: any) {
+function formatCurrencyValue(valor: any) {
   if (valor === undefined || valor === null) {
     return '';
   }
@@ -119,7 +125,7 @@ function tratarNumero(valor: any) {
   return str.substring(0, str.length - 2) + '.' + str.substring(str.length - 2);
 }
 
-function getImageProductCart(imageProduct: any) {
+function getProductImageUrlCart(imageProduct: any) {
   return imageProduct ? imageProduct.split('-')[0] : null;
 }
 
@@ -157,7 +163,7 @@ function sendEventInside(eventName: string, data: any) {
         "unit_sale_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.Price || 0,
         "unit_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.PriceWithoutDiscount || 0,
         "url": window.location.origin + data?.product?.detailUrl,
-        "product_image_url": getImageProduct(data?.product?.selectedSku?.imageUrl),
+        "product_image_url": getProductImageUrl(data?.product?.selectedSku?.imageUrl),
         "custom": {
           "isbn": data?.product?.selectedSku?.ean,
           "ean": data?.product?.selectedSku?.ean,
@@ -218,24 +224,26 @@ function sendEventInside(eventName: string, data: any) {
     }
     case 'addToCart': {
       let viewItemEvent = getViewItemEvent('add_to_cart', window.dataLayer);
-
-      if (viewItemEvent.ecommerce === null || viewItemEvent.ecommerce.items === undefined || viewItemEvent.ecommerce.items.length === 0) {
-        break
-      }
-      let product = viewItemEvent.ecommerce.items[0];
-
       let arrayTaxonomy = [];
+      let product: any;
+      debugger
+      if (viewItemEvent || viewItemEvent.ecommerce === null || viewItemEvent.ecommerce.items === undefined || viewItemEvent.ecommerce.items.length === 0) {
 
-      if (product.item_category) arrayTaxonomy.push(product.item_category);
-      if (product.item_category2) arrayTaxonomy.push(product.item_category2);
-      if (product.item_category3) arrayTaxonomy.push(product.item_category3);
+        product = viewItemEvent.ecommerce.items[0];
 
-      let objectNew: any;
-      objectNew = {
+        if (product.item_category) arrayTaxonomy.push(product.item_category);
+        if (product.item_category2) arrayTaxonomy.push(product.item_category2);
+        if (product.item_category3) arrayTaxonomy.push(product.item_category3);
+      } if (!viewItemEvent) {
+        arrayTaxonomy.push(...data.category.split('/'))
+      }
+
+      let productDataToSend: any;
+      productDataToSend = {
         id: product.item_variant,
-        img: getImageProductCart(data.imageUrl),
-        unit_sale_price: data.sellingPrice ? parseFloat(tratarNumero(data.sellingPrice)) : null,
-        unit_price: parseFloat(tratarNumero(data.price)),
+        img: getProductImageUrlCart(data.imageUrl),
+        unit_sale_price: data.sellingPrice ? parseFloat(formatCurrencyValue(data.sellingPrice)) : null,
+        unit_price: parseFloat(formatCurrencyValue(data.price)),
         quantity: data.quantity,
         custom: {
           isbn: data.ean,
@@ -250,24 +258,24 @@ function sendEventInside(eventName: string, data: any) {
       let existingItem: any;
       let unitePrice: any = 0;
       if (storageData) {
-        imgAddToCartNew = imgAddToCart.filter((item: any) => item.id !== objectNew.id && item.unit_sale_price);
+        imgAddToCartNew = imgAddToCart.filter((item: any) => item.id !== productDataToSend.id && item.unit_sale_price);
 
-        if (imgAddToCartNew.id !== objectNew.id && imgAddToCartNew.unit_sale_price) {
+        if (imgAddToCartNew.id !== productDataToSend.id && imgAddToCartNew.unit_sale_price) {
           return
         }
-        if (imgAddToCartNew.id !== objectNew.id && objectNew.unit_sale_price) {
-          localStorage.setItem('imgAddToCart', JSON.stringify([...imgAddToCart, objectNew]));
+        if (imgAddToCartNew.id !== productDataToSend.id && productDataToSend.unit_sale_price) {
+          localStorage.setItem('imgAddToCart', JSON.stringify([...imgAddToCart, productDataToSend]));
         }
-        imgAddToCartNewEquals = imgAddToCart.filter((item: any) => item.id === objectNew.id && item.unit_sale_price);
-        if (imgAddToCartNewEquals.length > 0 && imgAddToCartNewEquals[0].id === objectNew.id && imgAddToCartNewEquals[0].unit_sale_price) {
-          imgAddToCartNew = [objectNew];
+        imgAddToCartNewEquals = imgAddToCart.filter((item: any) => item.id === productDataToSend.id && item.unit_sale_price);
+        if (imgAddToCartNewEquals.length > 0 && imgAddToCartNewEquals[0].id === productDataToSend.id && imgAddToCartNewEquals[0].unit_sale_price) {
+          imgAddToCartNew = [productDataToSend];
         }
       }
 
       if (storageData) {
         // Verifica se o item já existe no carrinho
         existingItem = imgAddToCart.find((item: any) =>
-          item.id === objectNew.id && item.unit_sale_price
+          item.id === productDataToSend.id && item.unit_sale_price
         );
 
         if (existingItem) {
@@ -281,13 +289,13 @@ function sendEventInside(eventName: string, data: any) {
 
 
       if (!storageData) {
-        let newArray = [objectNew];
+        let newArray = [productDataToSend];
         localStorage.setItem('imgAddToCart', JSON.stringify(newArray));
       }
 
       let unitSale = imgAddToCartNew && imgAddToCartNew.find((item: any) => item.id === data.skuId)
         ? imgAddToCartNew.find((item: any) => item.id === data.skuId).unit_sale_price
-        : objectNew.unit_sale_price;
+        : productDataToSend.unit_sale_price;
 
       window.InsiderQueue.push({
         type: 'currency',
@@ -299,11 +307,11 @@ function sendEventInside(eventName: string, data: any) {
           id: data.skuId,
           name: data.name,
           taxonomy: arrayTaxonomy,
-          unit_price: parseFloat(existingItem ? existingItem.unit_price : tratarNumero(data.price)),
+          unit_price: parseFloat(existingItem ? existingItem.unit_price : formatCurrencyValue(data.price)),
           url: 'https://' + window.location.hostname + data.detailUrl,
           unit_sale_price: unitSale ? unitSale : unitePrice,
           quantity: data.quantity,
-          product_image_url: getImageProductCart(data.imageUrl),
+          product_image_url: getProductImageUrlCart(data.imageUrl),
           custom: {
             isbn: data.ean ? data.ean : imgAddToCartNew[0].custom.isbn,
             ean: data.ean ? data.ean : imgAddToCartNew[0].custom.ean,
@@ -371,7 +379,6 @@ function sendEventInside(eventName: string, data: any) {
         );
 
       }
-      // new code
       if (existingItem) {
         if (existingItem.quantity === 0) {
           // Remove o item completamente se a quantidade for 0
@@ -400,7 +407,7 @@ function sendEventInside(eventName: string, data: any) {
           quantity: data.quantity,
           unit_sale_price: unit_sale_price ? unit_sale_price : 0,
           url: 'https://' + window.location.hostname + data.detailUrl,
-          product_image_url: getImageProductCart(data.imageUrl),
+          product_image_url: getProductImageUrlCart(data.imageUrl),
           custom: custom
         }
       });
@@ -424,8 +431,8 @@ function sendEventInside(eventName: string, data: any) {
             id: item.skuId,
             name: item.name,
             taxonomy: taxonomy,
-            unit_price: parseFloat(tratarNumero(orderItem.price)),
-            unit_sale_price: parseFloat(tratarNumero(orderItem.sellingPrice)),
+            unit_price: parseFloat(formatCurrencyValue(orderItem.price)),
+            unit_sale_price: parseFloat(formatCurrencyValue(orderItem.sellingPrice)),
             url: 'https://' + window.location.hostname + item.detailUrl,
             product_image_url: item.imageUrl,
             quantity: item.quantity
@@ -435,7 +442,7 @@ function sendEventInside(eventName: string, data: any) {
 
       window.InsiderQueue.push({
         type: 'cart', value: {
-          "total": parseFloat(tratarNumero(orderForm.value)),
+          "total": parseFloat(formatCurrencyValue(orderForm.value)),
           "shipping_cost": shipping(orderForm),
           "items": newItems
         }
