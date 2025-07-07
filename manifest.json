@@ -1,7 +1,7 @@
 {
   "name": "pixel-app-insider",
   "vendor": "manole",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "title": "Pixel APP Insider",
   "billingOptions": {
     "termsURL": "https://compliance.vtex.com/gdpr/policies/vtex-privacy-policy",
