@@ -226,7 +226,6 @@ function sendEventInside(eventName: string, data: any) {
       let viewItemEvent = getViewItemEvent('add_to_cart', window.dataLayer);
       let arrayTaxonomy = [];
       let product: any;
-      debugger
       if (viewItemEvent || viewItemEvent.ecommerce === null || viewItemEvent.ecommerce.items === undefined || viewItemEvent.ecommerce.items.length === 0) {
 
         product = viewItemEvent.ecommerce.items[0];
