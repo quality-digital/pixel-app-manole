@@ -3559,10 +3559,6 @@ makeerror@1.0.x:
   dependencies:
     tmpl "1.0.x"
 
-"manole.pixel-app-insider@https://ap2659--manole.myvtex.com/_v/private/typings/linked/v1/manole.pixel-app-insider@0.0.1+build1751551796/public/@types/manole.pixel-app-insider":
-  version "0.0.1"
-  resolved "https://ap2659--manole.myvtex.com/_v/private/typings/linked/v1/manole.pixel-app-insider@0.0.1+build1751551796/public/@types/manole.pixel-app-insider#0cbbb928ee5501451c0bc0c125a144bd6d023131"
-
 map-cache@^0.2.2:
   version "0.2.2"
   resolved "https://registry.yarnpkg.com/map-cache/-/map-cache-0.2.2.tgz#c32abd0bd6525d9b051645bb4f26ac5dc98a0dbf"
