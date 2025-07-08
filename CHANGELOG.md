@@ -7,10 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-### Changed
-
-- Update GitHub actions/cache to v4
+## [0.1.0] - 2025-07-07
 
 ### Added
 
-- Add interface for newsletter subscription event
+- [AP-2659](https://qualitydigital.atlassian.net/browse/AP-2659): integration insider tag and insider queue
+
