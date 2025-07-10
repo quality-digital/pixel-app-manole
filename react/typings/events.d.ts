@@ -18,6 +18,7 @@ export interface PixelMessage extends MessageEvent {
   | PromotionClickData
   | NewsletterSubscriptionData
   | ViewCartData
+  | categoryView
 }
 
 export interface EventData {
@@ -93,7 +94,12 @@ interface SearchMetaData {
   category: CategoryMetaData
   results: number
 }
-
+export interface CategoryView extends EventData {
+  event: 'categoryView'
+  eventName: 'vtex:categoryView'
+  products: Product[]
+  currency: string
+}
 export interface PageViewData extends EventData {
   event: 'pageView'
   eventName: 'vtex:pageView'

@@ -144,6 +144,7 @@ function shipping(orderForm: any) {
   }
 }
 function sendEventInside(eventName: string, data: any) {
+  debugger
   switch (eventName) {
     case 'home': {
       window.InsiderQueue.push({
@@ -152,6 +153,7 @@ function sendEventInside(eventName: string, data: any) {
       window.InsiderQueue.push({
         type: 'init'
       });
+      injectInsiderScript()
       break
     }
 
@@ -495,10 +497,8 @@ export function handleEvents(e: PixelMessage) {
 
   if (e.data.eventName === undefined || e.data.eventName === null) return
   switch (e.data.eventName) {
-
     case 'vtex:pageView': {
       const pageType = getPageName((e.data as any).routeId)
-
       switch (pageType) {
         case 'home': {
           window.InsiderQueue = window.InsiderQueue || []
@@ -533,6 +533,14 @@ export function handleEvents(e: PixelMessage) {
       const { items } = e.data
       window.InsiderQueue = window.InsiderQueue || []
       sendEventInside('addToCart', items[0])
+      break
+    }
+    case 'vtex:categoryView': {
+      window.InsiderQueue = window.InsiderQueue || []
+      let data = {
+        pageUrl: window.location.href,
+      }
+      sendEventInside('subcategory', data)
       break
     }
     case 'vtex:removeFromCart': {
