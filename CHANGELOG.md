@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- [AP-2659](https://qualitydigital.atlassian.net/browse/AP-2659): fixed in events home and category
+
 ## [0.1.0] - 2025-07-07
 
 ### Added
