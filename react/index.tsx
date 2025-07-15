@@ -9,7 +9,6 @@ declare global {
 
 let page_type: string | null = null
 
-// Buffer para acumular eventos
 let insiderEventBuffer: any[] = []
 let insiderInitTimeout: ReturnType<typeof setTimeout> | null = null
 
@@ -28,7 +27,7 @@ function pushInsiderEventBuffered(event: any) {
   if (insiderInitTimeout) clearTimeout(insiderInitTimeout)
   insiderInitTimeout = setTimeout(() => {
     flushInsiderEvents()
-  }, 800) // 800ms sem novos eventos envia tudo junto
+  }, 800)
 }
 
 function injectInsiderScript() {
@@ -205,9 +204,7 @@ function sendEventInside(eventName: string, data: any) {
       let arrayTaxonomy = []
       let product: any
       viewItemEvent = null
-      console.log('data', data)
       if (viewItemEvent && viewItemEvent.ecommerce && viewItemEvent.ecommerce.items === undefined && viewItemEvent.ecommerce.items.length === 0) {
-        console.log('viewItemEvent', viewItemEvent.ecommerce.items[0])
         product = viewItemEvent.ecommerce.items[0]
 
         if (product.item_category) arrayTaxonomy.push(product.item_category)
@@ -253,13 +250,11 @@ function sendEventInside(eventName: string, data: any) {
       }
 
       if (storageData) {
-        // Verifica se o item já existe no carrinho
         existingItem = imgAddToCart.find(
           (item: any) => item.id === productDataToSend.id && item.unit_sale_price
         )
 
         if (existingItem) {
-          // Se o item existe, incrementa a quantity
           existingItem.quantity = (existingItem.quantity || 1) + 1
           localStorage.setItem('imgAddToCart', JSON.stringify(imgAddToCart))
           imgAddToCartNew = [existingItem]
@@ -277,7 +272,6 @@ function sendEventInside(eventName: string, data: any) {
           ? imgAddToCartNew.find((item: any) => item.id === data.skuId).unit_sale_price
           : productDataToSend.unit_sale_price
 
-      // Mantém push direto para addToCart e remove_from_cart
       window.InsiderQueue!.push({
         type: 'currency',
         value: 'BRL',
@@ -357,19 +351,16 @@ function sendEventInside(eventName: string, data: any) {
       }
       if (existingItem) {
         if (existingItem.quantity === 0) {
-          // Remove o item completamente se a quantidade for 0
           newStorage = newStorage.filter((item: any) => item.id !== itemId)
         } else {
-          // Reduz 1 da quantidade do item correspondente
           newStorage = newStorage.map(item =>
             item.id === itemId
-              ? { ...item, quantity: item.quantity > 1 ? item.quantity - 1 : 1 } // Garante que não vai abaixo de 1
+              ? { ...item, quantity: item.quantity > 1 ? item.quantity - 1 : 1 }
               : item
           )
         }
       }
       localStorage.setItem('imgAddToCart', JSON.stringify(newStorage))
-      // Mantém push direto para remove_from_cart
       window.InsiderQueue!.push({
         type: 'currency',
         value: 'BRL',
@@ -518,7 +509,6 @@ export function handleEvents(e: PixelMessage) {
         return
       }
 
-      // Aguarda até que page_type tenha algum valor antes de continuar
       const waitForPageType = (callback: () => void) => {
         if (page_type) {
           callback()
@@ -538,10 +528,20 @@ export function handleEvents(e: PixelMessage) {
       const order: any = e.data
       var localStorageData = localStorage.getItem('ObjectInsiderPurchase')
       var objectInsider = localStorageData ? JSON.parse(localStorageData) : false
-
-      debugger
       if (objectInsider || order) {
+
+        order?.transactionProducts.forEach((product: any) => {
+          const match = objectInsider.items.find((item: any) => item.id === product.id)
+          if (match) {
+            match.unit_price = product.originalPrice
+            match.unit_sale_price = product.sellingPrice
+          }
+        })
+
         objectInsider.order_id = order?.ordersInOrderGroup[0]
+        objectInsider.total = order?.transactionTotal
+
+
         window.InsiderQueue.push({
           type: 'purchase',
           value: objectInsider,
