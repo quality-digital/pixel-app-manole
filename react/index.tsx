@@ -18,6 +18,8 @@ function flushInsiderEvents() {
     insiderEventBuffer = []
 
     window.InsiderQueue!.push({ type: 'init' })
+
+    injectInsiderScript()
   }
 }
 
@@ -365,10 +367,12 @@ function sendEventInside(eventName: string, data: any) {
         type: 'currency',
         value: 'BRL',
       })
+
+      console.log('data removed from cart', data)
       window.InsiderQueue!.push({
         type: 'remove_from_cart',
         value: {
-          id: data.productId,
+          id: data.skuId,
           name: data.name,
           taxonomy: arrayTaxonomy,
           unit_price: unit_price,
