@@ -7,9 +7,30 @@ declare global {
   }
 }
 
-
 let page_type: string | null = null
 
+let insiderEventBuffer: any[] = []
+let insiderInitTimeout: ReturnType<typeof setTimeout> | null = null
+
+function flushInsiderEvents() {
+  if (insiderEventBuffer.length > 0) {
+    insiderEventBuffer.forEach(evt => window.InsiderQueue!.push(evt))
+    insiderEventBuffer = []
+
+    window.InsiderQueue!.push({ type: 'init' })
+
+    injectInsiderScript()
+  }
+}
+
+function pushInsiderEventBuffered(event: any) {
+  insiderEventBuffer.push(event)
+
+  if (insiderInitTimeout) clearTimeout(insiderInitTimeout)
+  insiderInitTimeout = setTimeout(() => {
+    flushInsiderEvents()
+  }, 800)
+}
 
 function injectInsiderScript() {
   if (window.InsiderQueue) {
@@ -19,22 +40,19 @@ function injectInsiderScript() {
     document.head.appendChild(script)
   }
 }
-function getPageName(input: string) {
 
+function getPageName(input: string) {
   if (!input) return null
   const parts = input.split(/[.#]/)
   if (parts.length === 1) {
     return parts[0] || null
   }
-
   if (input.includes('#')) {
     return parts[2] || null
   }
-
   if (input.includes('.')) {
     return parts[1] || null
   }
-
   return null
 }
 
@@ -42,204 +60,166 @@ function getProductImageUrl(imagens: string | undefined) {
   if (!imagens) {
     return
   }
-  return imagens.split('?')[0];
+  return imagens.split('?')[0]
 }
-function extractCategoryNames(categories: any) {
 
+function extractCategoryNames(categories: any) {
   if (!categories) {
     return []
   }
-  return categories.map((category: { name: any; }) => category.name);
+  return categories.map((category: { name: any }) => category.name)
 }
 
 function formatPathSegments(url: any) {
-
-  let path = '';
+  let path = ''
   try {
-    path = new URL(url).pathname;
+    path = new URL(url).pathname
   } catch (e) {
-    console.warn('Invalid URL:', url);
-    return [];
+    console.warn('Invalid URL:', url)
+    return []
   }
-
-  const segments = path.split('/').filter(segment => segment && segment !== '__bindingAddress');
-
+  const segments = path.split('/').filter(segment => segment && segment !== '__bindingAddress')
   const formatted = segments.map(segment => {
-    let formattedSegment = segment.replace(/-/g, ' ');
-
-    formattedSegment = formattedSegment.split(' ')
+    let formattedSegment = segment.replace(/-/g, ' ')
+    formattedSegment = formattedSegment
+      .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-
+      .join(' ')
     if (formattedSegment === 'Cursos Na Area Da Saude') {
-      return 'Curso na área da saúde';
+      return 'Curso na área da saúde'
     }
-
-    return formattedSegment;
-  });
-
-  return formatted;
+    return formattedSegment
+  })
+  return formatted
 }
+
 /*Add to CART*/
 function getViewItemEvent(eventDataLayer: any, dataLayer: any) {
   for (let i = dataLayer.length - 1; i >= 0; i--) {
     if (dataLayer[i].event === eventDataLayer) {
-      return dataLayer[i];
+      return dataLayer[i]
     }
   }
-  return null;
+  return null
 }
 
 function formatCurrencyValue(valor: any) {
   if (valor === undefined || valor === null) {
-    return '';
+    return ''
   }
-  let str = valor.toString() ? valor.toString() : valor;
-
-  let zerosFinais = 0;
+  let str = valor.toString() ? valor.toString() : valor
+  let zerosFinais = 0
   for (let i = str.length - 1; i >= 0; i--) {
     if (str.charAt(i) === '0') {
-      zerosFinais++;
+      zerosFinais++
     } else {
-      break;
+      break
     }
   }
-
   if (zerosFinais >= 2) {
-    str = str.substring(0, str.length - 2);
-    return str;
+    str = str.substring(0, str.length - 2)
+    return str
   }
-
   if (zerosFinais === 1) {
-    let base = str.substring(0, str.length - 1);
+    let base = str.substring(0, str.length - 1)
     if (base.length === 1) {
-      return '0.' + base;
+      return '0.' + base
     }
-    return base.substring(0, base.length - 1) + '.' + base.substring(base.length - 1);
+    return base.substring(0, base.length - 1) + '.' + base.substring(base.length - 1)
   }
-
   if (str.length <= 2) {
-    return '0.' + (str.length === 1 ? '0' + str : str);
+    return '0.' + (str.length === 1 ? '0' + str : str)
   }
-
-  return str.substring(0, str.length - 2) + '.' + str.substring(str.length - 2);
+  return str.substring(0, str.length - 2) + '.' + str.substring(str.length - 2)
 }
 
 function getProductImageUrlCart(imageProduct: any) {
-  return imageProduct ? imageProduct.split('-')[0] : null;
+  return imageProduct ? imageProduct.split('-')[0] : null
 }
 
 function shipping(orderForm: any) {
-  var shipping = null;
+  var shipping = null
   var totalizers = orderForm.totalizers
   for (var i = 0; i < totalizers.length; i++) {
-    if (totalizers[i].id === "Shipping") {
-      return shipping = totalizers[i].value;
+    if (totalizers[i].id === 'Shipping') {
+      return (shipping = totalizers[i].value)
     }
     if (shipping !== null) {
-      return shipping;
+      return shipping
     } else {
       return 0
     }
   }
 }
+
 function sendEventInside(eventName: string, data: any) {
   switch (eventName) {
     case 'home': {
-      window.InsiderQueue.push({
-        type: 'home'
-      });
-      window.InsiderQueue.push({
-        type: 'init'
-      });
+      pushInsiderEventBuffered({ type: 'home' })
+      pushInsiderEventBuffered({ type: 'currency', value: 'BRL' })
       break
     }
 
     case 'product': {
       let objectUser = {
-        "id": data?.product?.selectedSku?.itemId,
-        "name": data?.product?.productName,
-        "taxonomy": extractCategoryNames(data.product?.categoryTree),
-        "unit_sale_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.Price || 0,
-        "unit_price": data?.product?.selectedSku?.sellers[0].commertialOffer?.PriceWithoutDiscount || 0,
-        "url": window.location.origin + data?.product?.detailUrl,
-        "product_image_url": getProductImageUrl(data?.product?.selectedSku?.imageUrl),
-        "custom": {
-          "isbn": data?.product?.selectedSku?.ean,
-          "ean": data?.product?.selectedSku?.ean,
-          "modalidade": data?.product?.selectedSku.name
-        }
+        id: data?.product?.selectedSku?.itemId,
+        name: data?.product?.productName,
+        taxonomy: extractCategoryNames(data.product?.categoryTree),
+        unit_sale_price: data?.product?.selectedSku?.sellers[0].commertialOffer?.Price || 0,
+        unit_price: data?.product?.selectedSku?.sellers[0].commertialOffer?.PriceWithoutDiscount || 0,
+        url: window.location.origin + data?.product?.detailUrl,
+        product_image_url: getProductImageUrl(data?.product?.selectedSku?.imageUrl),
+        custom: {
+          isbn: data?.product?.selectedSku?.ean,
+          ean: data?.product?.selectedSku?.ean,
+          modalidade: data?.product?.selectedSku.name,
+        },
       }
 
-
-      window.InsiderQueue.push({
-        type: 'product',
-        value: objectUser
-      });
-      window.InsiderQueue.push({
-        type: "currency",
-        value: data?.currency || 'BRL'
-      });
-      window.InsiderQueue.push({
-        type: 'init'
-      });
+      pushInsiderEventBuffered({ type: 'product', value: objectUser })
+      pushInsiderEventBuffered({ type: 'currency', value: data?.currency || 'BRL' })
 
       injectInsiderScript()
       break
     }
 
     case 'subcategory': {
-      let formattedPaths: any = formatPathSegments(data.pageUrl);
+      let formattedPaths: any = formatPathSegments(data.pageUrl)
       if (!formattedPaths || formattedPaths.length === 0) {
         return
       }
-      window.InsiderQueue.push({
-        type: 'category',
-        value: formattedPaths
-      });
-      window.InsiderQueue.push({
-        type: 'init'
-      });
-
-      injectInsiderScript()
+      pushInsiderEventBuffered({ type: 'category', value: formattedPaths })
       break
     }
 
     case 'department': {
-      let formattedPaths: any = formatPathSegments(data.pageUrl);
-
+      let formattedPaths: any = formatPathSegments(data.pageUrl)
       if (!formattedPaths || formattedPaths.length === 0) {
         return
       }
-      window.InsiderQueue.push({
-        type: 'category',
-        value: formattedPaths
-      });
-      window.InsiderQueue.push({
-        type: 'init'
-      });
-
-      injectInsiderScript()
+      pushInsiderEventBuffered({ type: 'category', value: formattedPaths })
       break
     }
+
     case 'addToCart': {
-      let viewItemEvent = getViewItemEvent('add_to_cart', window.dataLayer);
-      let arrayTaxonomy = [];
-      let product: any;
-      if (viewItemEvent || viewItemEvent.ecommerce === null || viewItemEvent.ecommerce.items === undefined || viewItemEvent.ecommerce.items.length === 0) {
+      let viewItemEvent = getViewItemEvent('add_to_cart', window.dataLayer)
+      let arrayTaxonomy = []
+      let product: any
+      viewItemEvent = null
+      if (viewItemEvent && viewItemEvent.ecommerce && viewItemEvent.ecommerce.items === undefined && viewItemEvent.ecommerce.items.length === 0) {
+        product = viewItemEvent.ecommerce.items[0]
 
-        product = viewItemEvent.ecommerce.items[0];
-
-        if (product.item_category) arrayTaxonomy.push(product.item_category);
-        if (product.item_category2) arrayTaxonomy.push(product.item_category2);
-        if (product.item_category3) arrayTaxonomy.push(product.item_category3);
-      } if (!viewItemEvent) {
+        if (product.item_category) arrayTaxonomy.push(product.item_category)
+        if (product.item_category2) arrayTaxonomy.push(product.item_category2)
+        if (product.item_category3) arrayTaxonomy.push(product.item_category3)
+      }
+      if (!viewItemEvent) {
         arrayTaxonomy.push(...data.category.split('/'))
       }
 
-      let productDataToSend: any;
+      let productDataToSend: any
       productDataToSend = {
-        id: product.item_variant,
+        id: product ? product.item_variant : data.skuId,
         img: getProductImageUrlCart(data.imageUrl),
         unit_sale_price: data.sellingPrice ? parseFloat(formatCurrencyValue(data.sellingPrice)) : null,
         unit_price: parseFloat(formatCurrencyValue(data.price)),
@@ -247,60 +227,58 @@ function sendEventInside(eventName: string, data: any) {
         custom: {
           isbn: data.ean,
           ean: data.ean,
-          modalidade: data.variant
-        }
-      };
+          modalidade: data.variant,
+        },
+      }
       let storageData: any = localStorage.getItem('imgAddToCart')
-      let imgAddToCart = JSON.parse(storageData);
-      let imgAddToCartNew: any;
-      let imgAddToCartNewEquals: any;
-      let existingItem: any;
-      let unitePrice: any = 0;
+      let imgAddToCart = JSON.parse(storageData)
+      let imgAddToCartNew: any
+      let imgAddToCartNewEquals: any
+      let existingItem: any
+      let unitePrice: any = 0
       if (storageData) {
-        imgAddToCartNew = imgAddToCart.filter((item: any) => item.id !== productDataToSend.id && item.unit_sale_price);
+        imgAddToCartNew = imgAddToCart.filter((item: any) => item.id !== productDataToSend.id && item.unit_sale_price)
 
         if (imgAddToCartNew.id !== productDataToSend.id && imgAddToCartNew.unit_sale_price) {
           return
         }
         if (imgAddToCartNew.id !== productDataToSend.id && productDataToSend.unit_sale_price) {
-          localStorage.setItem('imgAddToCart', JSON.stringify([...imgAddToCart, productDataToSend]));
+          localStorage.setItem('imgAddToCart', JSON.stringify([...imgAddToCart, productDataToSend]))
         }
-        imgAddToCartNewEquals = imgAddToCart.filter((item: any) => item.id === productDataToSend.id && item.unit_sale_price);
+        imgAddToCartNewEquals = imgAddToCart.filter((item: any) => item.id === productDataToSend.id && item.unit_sale_price)
         if (imgAddToCartNewEquals.length > 0 && imgAddToCartNewEquals[0].id === productDataToSend.id && imgAddToCartNewEquals[0].unit_sale_price) {
-          imgAddToCartNew = [productDataToSend];
+          imgAddToCartNew = [productDataToSend]
         }
       }
 
       if (storageData) {
-        // Verifica se o item já existe no carrinho
-        existingItem = imgAddToCart.find((item: any) =>
-          item.id === productDataToSend.id && item.unit_sale_price
-        );
+        existingItem = imgAddToCart.find(
+          (item: any) => item.id === productDataToSend.id && item.unit_sale_price
+        )
 
         if (existingItem) {
-          // Se o item existe, incrementa a quantity
-          existingItem.quantity = (existingItem.quantity || 1) + 1;
-          localStorage.setItem('imgAddToCart', JSON.stringify(imgAddToCart));
+          existingItem.quantity = (existingItem.quantity || 1) + 1
+          localStorage.setItem('imgAddToCart', JSON.stringify(imgAddToCart))
           imgAddToCartNew = [existingItem]
-          unitePrice = existingItem.unit_price;
+          unitePrice = existingItem.unit_price
         }
       }
 
-
       if (!storageData) {
-        let newArray = [productDataToSend];
-        localStorage.setItem('imgAddToCart', JSON.stringify(newArray));
+        let newArray = [productDataToSend]
+        localStorage.setItem('imgAddToCart', JSON.stringify(newArray))
       }
 
-      let unitSale = imgAddToCartNew && imgAddToCartNew.find((item: any) => item.id === data.skuId)
-        ? imgAddToCartNew.find((item: any) => item.id === data.skuId).unit_sale_price
-        : productDataToSend.unit_sale_price;
+      let unitSale =
+        imgAddToCartNew && imgAddToCartNew.find((item: any) => item.id === data.skuId)
+          ? imgAddToCartNew.find((item: any) => item.id === data.skuId).unit_sale_price
+          : productDataToSend.unit_sale_price
 
-      window.InsiderQueue.push({
+      window.InsiderQueue!.push({
         type: 'currency',
-        value: 'BRL'
-      });
-      window.InsiderQueue.push({
+        value: 'BRL',
+      })
+      window.InsiderQueue!.push({
         type: 'add_to_cart',
         value: {
           id: data.skuId,
@@ -314,92 +292,86 @@ function sendEventInside(eventName: string, data: any) {
           custom: {
             isbn: data.ean ? data.ean : imgAddToCartNew[0].custom.isbn,
             ean: data.ean ? data.ean : imgAddToCartNew[0].custom.ean,
-            modalidade: data.variant
-          }
-        }
-      });
+            modalidade: data.variant,
+          },
+        },
+      })
       injectInsiderScript()
       break
     }
 
     case 'remove_from_cart': {
+      let viewItemEvent = getViewItemEvent('remove_from_cart', window.dataLayer)
 
-      let viewItemEvent = getViewItemEvent("remove_from_cart", window.dataLayer);
-
-      if (!viewItemEvent || !viewItemEvent.ecommerce || !viewItemEvent.ecommerce.items || !viewItemEvent.ecommerce.items.length) {
-        console.warn('Product data not found in dataLayer');
+      if (!viewItemEvent && !viewItemEvent.ecommerce && !viewItemEvent.ecommerce.items && !viewItemEvent.ecommerce.items.length) {
+        console.warn('Product data not found in dataLayer')
         break
       }
 
-      let product = viewItemEvent.ecommerce.items[0];
-      let arrayTaxonomy = [];
+      let product = viewItemEvent.ecommerce.items[0]
+      let arrayTaxonomy = []
 
-      if (product.item_category) arrayTaxonomy.push(product.item_category);
-      if (product.item_category2) arrayTaxonomy.push(product.item_category2);
-      if (product.item_category3) arrayTaxonomy.push(product.item_category3);
+      if (product.item_category) arrayTaxonomy.push(product.item_category)
+      if (product.item_category2) arrayTaxonomy.push(product.item_category2)
+      if (product.item_category3) arrayTaxonomy.push(product.item_category3)
 
       let storageData: any = localStorage.getItem('imgAddToCart')
       let imgAddToCart = JSON.parse(storageData)
 
-
-      let itemId = product.item_variant;
+      let itemId = product.item_variant
       let unit_price: any = ''
       let unit_sale_price: any = ''
-      let custom: any = {};
+      let custom: any = {}
 
       for (var i = 0; i < imgAddToCart.length; i++) {
         if (imgAddToCart[i].id === itemId) {
           unit_price = imgAddToCart[i].unit_price
           unit_sale_price = imgAddToCart[i].unit_sale_price
-          custom = imgAddToCart[i].custom;
-          break;
+          custom = imgAddToCart[i].custom
+          break
         }
       }
 
-      let newStorage = [];
+      let newStorage = []
       for (var j = 0; j < imgAddToCart.length; j++) {
         if (imgAddToCart[j].id !== itemId) {
-          newStorage.push(imgAddToCart[j]);
+          newStorage.push(imgAddToCart[j])
         }
         if (imgAddToCart[j].id === itemId) {
           if (imgAddToCart[j].quantity === 0) {
             return
           } else {
-            imgAddToCart[j].quantity - 1;
-            newStorage.push(imgAddToCart[j]);
+            imgAddToCart[j].quantity - 1
+            newStorage.push(imgAddToCart[j])
           }
         }
       }
-      let existingItem: any;
+      let existingItem: any
 
       if (storageData) {
-        existingItem = newStorage.find((item: any) =>
-          item.id === itemId && item.quantity > 0
-        );
-
+        existingItem = newStorage.find((item: any) => item.id === itemId && item.quantity > 0)
       }
       if (existingItem) {
         if (existingItem.quantity === 0) {
-          // Remove o item completamente se a quantidade for 0
-          newStorage = newStorage.filter((item: any) => item.id !== itemId);
+          newStorage = newStorage.filter((item: any) => item.id !== itemId)
         } else {
-          // Reduz 1 da quantidade do item correspondente
-          newStorage = newStorage.map((item: any) =>
+          newStorage = newStorage.map(item =>
             item.id === itemId
-              ? { ...item, quantity: item.quantity > 1 ? item.quantity - 1 : 1 } // Garante que não vai abaixo de 1
+              ? { ...item, quantity: item.quantity > 1 ? item.quantity - 1 : 1 }
               : item
-          );
+          )
         }
       }
-      localStorage.setItem('imgAddToCart', JSON.stringify(newStorage));
-      window.InsiderQueue.push({
+      localStorage.setItem('imgAddToCart', JSON.stringify(newStorage))
+      window.InsiderQueue!.push({
         type: 'currency',
-        value: 'BRL'
-      });
-      window.InsiderQueue.push({
+        value: 'BRL',
+      })
+
+      window.InsiderQueue!.push({
         type: 'remove_from_cart',
         value: {
-          id: data.productId,
+          id: data.skuId,
           name: data.name,
           taxonomy: arrayTaxonomy,
           unit_price: unit_price,
@@ -407,23 +379,23 @@ function sendEventInside(eventName: string, data: any) {
           unit_sale_price: unit_sale_price ? unit_sale_price : 0,
           url: 'https://' + window.location.hostname + data.detailUrl,
           product_image_url: getProductImageUrlCart(data.imageUrl),
-          custom: custom
-        }
-      });
+          custom: custom,
+        },
+      })
       break
     }
 
     case 'viewCart': {
-      let newItems: any = [];
-      let dataOrderForm: any = localStorage.getItem('orderform');
-      let orderForm = JSON.parse(dataOrderForm) || [];
+      let newItems: any = []
+      let dataOrderForm: any = localStorage.getItem('orderform')
+      let orderForm = JSON.parse(dataOrderForm) || []
 
       if (!data) {
         break
       }
       data.forEach((item: any) => {
-        const taxonomy = item.category.split('/').map((i: any) => i.trim());
-        const orderItem = orderForm.items.find((d: any) => d.id === item.skuId);
+        const taxonomy = item.category.split('/').map((i: any) => i.trim())
+        const orderItem = orderForm.items.find((d: any) => d.id === item.skuId)
 
         if (orderItem) {
           newItems.push({
@@ -434,68 +406,53 @@ function sendEventInside(eventName: string, data: any) {
             unit_sale_price: parseFloat(formatCurrencyValue(orderItem.sellingPrice)),
             url: 'https://' + window.location.hostname + item.detailUrl,
             product_image_url: item.imageUrl,
-            quantity: item.quantity
-          });
+            quantity: item.quantity,
+          })
         }
-      });
+      })
 
-      window.InsiderQueue.push({
-        type: 'cart', value: {
-          "total": parseFloat(formatCurrencyValue(orderForm.value)),
-          "shipping_cost": shipping(orderForm),
-          "items": newItems
-        }
-      });
-      window.InsiderQueue.push({
+      pushInsiderEventBuffered({
+        type: 'cart',
+        value: {
+          total: parseFloat(formatCurrencyValue(orderForm.value)),
+          shipping_cost: shipping(orderForm),
+          items: newItems,
+        },
+      })
+      pushInsiderEventBuffered({
         type: 'currency',
-        value: 'BRL'
-      });
-      window.InsiderQueue.push({
-        type: 'init'
-      });
+        value: 'BRL',
+      })
 
+      injectInsiderScript()
       break
     }
 
     case 'user': {
-      let getInsiderQueueUse = localStorage.getItem('insiderQueue');
+      let getInsiderQueueUse = localStorage.getItem('insiderQueue')
 
       if (!getInsiderQueueUse) return
       let InsiderUserObj = JSON.parse(getInsiderQueueUse)
       InsiderUserObj.value.custom = {
         cpf: InsiderUserObj.value.document,
       }
-      window.InsiderQueue.push(InsiderUserObj);
-
-      window.InsiderQueue.push({
-
+      pushInsiderEventBuffered(InsiderUserObj)
+      pushInsiderEventBuffered({
         type: 'set_custom_identifier',
-
         value: {
-
-          "cpf": InsiderUserObj.value.document
-
-        }
-
-      });
-
-      window.InsiderQueue.push({
-        type: 'init'
-      });
+          cpf: InsiderUserObj.value.document,
+        },
+      })
 
       injectInsiderScript()
-
       break
     }
   }
 }
 
-
 export function handleEvents(e: PixelMessage) {
-
   if (e.data.eventName === undefined || e.data.eventName === null) return
   switch (e.data.eventName) {
-
     case 'vtex:pageView': {
       const pageType = getPageName((e.data as any).routeId)
 
@@ -537,7 +494,6 @@ export function handleEvents(e: PixelMessage) {
     }
     case 'vtex:removeFromCart': {
       const { items } = e.data
-
       window.InsiderQueue = window.InsiderQueue || []
       sendEventInside('remove_from_cart', items[0])
       break
@@ -556,7 +512,6 @@ export function handleEvents(e: PixelMessage) {
         return
       }
 
-      // Aguarda até que page_type tenha algum valor antes de continuar
       const waitForPageType = (callback: () => void) => {
         if (page_type) {
           callback()
@@ -576,21 +531,31 @@ export function handleEvents(e: PixelMessage) {
       const order: any = e.data
       var localStorageData = localStorage.getItem('ObjectInsiderPurchase')
       var objectInsider = localStorageData ? JSON.parse(localStorageData) : false
-
-      debugger
       if (objectInsider || order) {
-        objectInsider.order_id = order?.ordersInOrderGroup[0];
+
+        order?.transactionProducts.forEach((product: any) => {
+          const match = objectInsider.items.find((item: any) => item.id === product.id)
+          if (match) {
+            match.unit_price = product.originalPrice
+            match.unit_sale_price = product.sellingPrice
+          }
+        })
+
+        objectInsider.order_id = order?.ordersInOrderGroup[0]
+        objectInsider.total = order?.transactionTotal
+
+
         window.InsiderQueue.push({
-          type: 'purchase', value: objectInsider
-        });
+          type: 'purchase',
+          value: objectInsider,
+        })
         window.InsiderQueue.push({
           type: 'currency',
-          value: 'BRL'
-        });
+          value: 'BRL',
+        })
         window.InsiderQueue.push({
-          type: 'init'
-        });
-
+          type: 'init',
+        })
       }
       page_type = 'purchase'
       break
@@ -598,8 +563,6 @@ export function handleEvents(e: PixelMessage) {
     default: {
       break
     }
-
-
   }
 }
 

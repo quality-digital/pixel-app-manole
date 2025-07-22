@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-07-22
+
+### Fixed
+
+- [AP-2659](https://qualitydigital.atlassian.net/browse/AP-2659): Fixed in events insider production
+
 ## [0.1.0] - 2025-07-07
 
 ### Added
