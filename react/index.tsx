@@ -368,7 +368,6 @@ function sendEventInside(eventName: string, data: any) {
         value: 'BRL',
       })
 
-      console.log('data removed from cart', data)
       window.InsiderQueue!.push({
         type: 'remove_from_cart',
         value: {
