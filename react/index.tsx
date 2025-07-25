@@ -28,7 +28,6 @@ function flushInsiderEvents() {
 
 function pushInsiderEventBuffered(event: any) {
   insiderEventBuffer.push(event)
-  console.log('Insider event buffered:', event)
   if (insiderInitTimeout) clearTimeout(insiderInitTimeout)
   insiderInitTimeout = setTimeout(() => {
     flushInsiderEvents()
@@ -433,11 +432,9 @@ function sendEventInside(eventName: string, data: any) {
 
     case 'user': {
       if (data.isAuthenticated) {
-        console.log('User data received:', data)
         const intervalId = setInterval(() => {
           let getInsiderQueueUse: any = localStorage.getItem('insiderQueue')
           if (getInsiderQueueUse) {
-            console.log('getInsiderQueueUse', getInsiderQueueUse)
             let InsiderUserObj = JSON.parse(getInsiderQueueUse)
             InsiderUserObj.value.custom = {
               cpf: InsiderUserObj.value.document,
