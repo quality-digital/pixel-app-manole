@@ -23,13 +23,16 @@ function flushInsiderEvents() {
   }
 }
 
+
+
+
 function pushInsiderEventBuffered(event: any) {
   insiderEventBuffer.push(event)
-
+  console.log('Insider event buffered:', event)
   if (insiderInitTimeout) clearTimeout(insiderInitTimeout)
   insiderInitTimeout = setTimeout(() => {
     flushInsiderEvents()
-  }, 800)
+  }, 2000)
 }
 
 function injectInsiderScript() {
@@ -429,22 +432,30 @@ function sendEventInside(eventName: string, data: any) {
     }
 
     case 'user': {
-      let getInsiderQueueUse = localStorage.getItem('insiderQueue')
+      if (data.isAuthenticated) {
+        console.log('User data received:', data)
+        const intervalId = setInterval(() => {
+          let getInsiderQueueUse: any = localStorage.getItem('insiderQueue')
+          if (getInsiderQueueUse) {
+            console.log('getInsiderQueueUse', getInsiderQueueUse)
+            let InsiderUserObj = JSON.parse(getInsiderQueueUse)
+            InsiderUserObj.value.custom = {
+              cpf: InsiderUserObj.value.document,
+            }
 
-      if (!getInsiderQueueUse) return
-      let InsiderUserObj = JSON.parse(getInsiderQueueUse)
-      InsiderUserObj.value.custom = {
-        cpf: InsiderUserObj.value.document,
+            pushInsiderEventBuffered(InsiderUserObj)
+            pushInsiderEventBuffered({
+              type: 'set_custom_identifier',
+              value: {
+                cpf: InsiderUserObj.value.document,
+              },
+            })
+
+            injectInsiderScript()
+            clearInterval(intervalId)
+          }
+        }, 500)
       }
-      pushInsiderEventBuffered(InsiderUserObj)
-      pushInsiderEventBuffered({
-        type: 'set_custom_identifier',
-        value: {
-          cpf: InsiderUserObj.value.document,
-        },
-      })
-
-      injectInsiderScript()
       break
     }
   }
@@ -522,6 +533,8 @@ export function handleEvents(e: PixelMessage) {
 
       waitForPageType(() => {
         window.InsiderQueue = window.InsiderQueue || []
+
+        console.log('User data received:', data)
         sendEventInside('user', data)
       })
       break
