@@ -530,8 +530,6 @@ export function handleEvents(e: PixelMessage) {
 
       waitForPageType(() => {
         window.InsiderQueue = window.InsiderQueue || []
-
-        console.log('User data received:', data)
         sendEventInside('user', data)
       })
       break
