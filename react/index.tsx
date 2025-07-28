@@ -436,17 +436,21 @@ function sendEventInside(eventName: string, data: any) {
           let getInsiderQueueUse: any = localStorage.getItem('insiderQueue')
           if (getInsiderQueueUse) {
             let InsiderUserObj = JSON.parse(getInsiderQueueUse)
-            InsiderUserObj.value.custom = {
-              cpf: InsiderUserObj.value.document,
+            if (InsiderUserObj.value.document) {
+              InsiderUserObj.value.custom = {
+                cpf: InsiderUserObj.value.document,
+              }
             }
 
             pushInsiderEventBuffered(InsiderUserObj)
-            pushInsiderEventBuffered({
-              type: 'set_custom_identifier',
-              value: {
-                cpf: InsiderUserObj.value.document,
-              },
-            })
+            if (InsiderUserObj.value.document) {
+              pushInsiderEventBuffered({
+                type: 'set_custom_identifier',
+                value: {
+                  cpf: InsiderUserObj.value.document,
+                },
+              })
+            }
 
             injectInsiderScript()
             clearInterval(intervalId)
